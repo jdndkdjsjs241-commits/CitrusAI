@@ -1,0 +1,838 @@
+import React, { useState } from 'react';
+import { Code, Copy, CheckCircle, Loader, FileCode, BookOpen, Wand2, MessageSquare, HelpCircle, Users, Mail } from 'lucide-react';
+
+export default function CitrusAI() {
+  const [prompt, setPrompt] = useState('');
+  const [generatedScript, setGeneratedScript] = useState('');
+  const [explanation, setExplanation] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [activeTab, setActiveTab] = useState('generator');
+
+  const categories = [
+    { id: 'all', name: 'All', color: 'from-lime-500 to-green-500' },
+    { id: 'combat', name: 'Combat', color: 'from-red-500 to-orange-500' },
+    { id: 'gui', name: 'GUI/UI', color: 'from-blue-500 to-cyan-500' },
+    { id: 'tools', name: 'Tools', color: 'from-yellow-500 to-amber-500' },
+    { id: 'systems', name: 'Systems', color: 'from-purple-500 to-pink-500' },
+    { id: 'effects', name: 'Effects', color: 'from-indigo-500 to-violet-500' }
+  ];
+
+  const examples = [
+    { text: 'Currency system with leaderboard', category: 'systems' },
+    { text: 'Sword that deals damage on touch', category: 'combat' },
+    { text: 'Shop GUI with purchase buttons', category: 'gui' },
+    { text: 'Teleportation system between spawns', category: 'systems' },
+    { text: 'Building tool with placement system', category: 'tools' },
+    { text: 'Particle effects on player movement', category: 'effects' },
+    { text: 'Level and XP progression system', category: 'systems' },
+    { text: 'Proximity-activated door', category: 'tools' }
+  ];
+
+  const faqs = [
+    {
+      question: 'How does Citrus AI work?',
+      answer: 'Citrus AI uses advanced language models to understand your requirements and generate functional Roblox Lua scripts. Simply describe what you need, and the AI will create optimized code with explanations.'
+    },
+    {
+      question: 'Is the generated code ready to use?',
+      answer: 'Yes! The code is designed to be functional and follows Roblox best practices. However, you may need to adjust object names or paths to match your specific game structure.'
+    },
+    {
+      question: 'What types of scripts can it generate?',
+      answer: 'Citrus AI can generate a wide variety of scripts including combat systems, GUI interfaces, tools, game mechanics, particle effects, and more. It supports LocalScripts, ServerScripts, and ModuleScripts.'
+    },
+    {
+      question: 'Do I need programming knowledge?',
+      answer: 'Not necessarily! While basic understanding helps, Citrus AI provides detailed explanations with each script to help you learn. It\'s perfect for both beginners and experienced developers.'
+    },
+    {
+      question: 'Can I modify the generated scripts?',
+      answer: 'Absolutely! The generated code is yours to modify and use. We encourage customization to fit your specific game needs. The explanations will help you understand what each part does.'
+    },
+    {
+      question: 'Is there a usage limit?',
+      answer: 'Currently, Citrus AI is free to use with reasonable rate limits. We want to help the Roblox developer community create amazing games.'
+    }
+  ];
+
+  const generateScript = async () => {
+    if (!prompt.trim()) return;
+
+    setLoading(true);
+    setGeneratedScript('');
+    setExplanation('');
+
+    try {
+      const response = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify({
+          model: 'claude-sonnet-4-20250514',
+          max_tokens: 2000,
+          messages: [
+            {
+              role: 'user',
+              content: `You are an expert Roblox scripting assistant. Generate a complete, functional Roblox Lua script based on this description: "${prompt}"
+
+REQUIREMENTS:
+- Generate functional Lua code ready for use in Roblox
+- Follow Roblox best practices and conventions
+- Include helpful comments in the code
+- After the code, add an "EXPLANATION:" section with a brief explanation of what the script does and how to use it
+
+Response format:
+[LUA CODE HERE]
+
+EXPLANATION:
+[Brief explanation of functionality and usage]`
+            }
+          ]
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (!data.content || data.content.length === 0) {
+        throw new Error('No content in response');
+      }
+
+      const fullResponse = data.content
+        .filter(item => item.type === 'text')
+        .map(item => item.text)
+        .join('\n');
+
+      if (!fullResponse) {
+        throw new Error('Empty response from API');
+      }
+
+      const parts = fullResponse.split('EXPLANATION:');
+      const code = parts[0].trim();
+      const explain = parts[1] ? parts[1].trim() : 'Script generated successfully.';
+
+      setGeneratedScript(code);
+      setExplanation(explain);
+    } catch (error) {
+      console.error('Generation error:', error);
+      setGeneratedScript('-- Error generating script. Please try again.\n-- Error details: ' + error.message);
+      setExplanation('An error occurred while generating the script. This could be due to network issues or API limitations. Please try again in a moment.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyCode = () => {
+    navigator.clipboard.writeText(generatedScript);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const useExample = (example) => {
+    setPrompt(example);
+  };
+
+  const filteredExamples = selectedCategory === 'all' 
+    ? examples 
+    : examples.filter(e => e.category === selectedCategory);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-green-900 to-slate-900 text-white">
+      
+      {/* Header */}
+      <header className="border-b border-white/10 bg-black/20 backdrop-blur-lg">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 via-lime-400 to-green-500 rounded-xl flex items-center justify-center shadow-lg">
+                <span className="text-2xl">🍋</span>
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold bg-gradient-to-r from-yellow-400 via-lime-400 to-green-500 bg-clip-text text-transparent">
+                  Citrus AI
+                </h1>
+                <p className="text-xs text-lime-400">Powered by Axiom</p>
+              </div>
+            </div>
+            <nav className="flex gap-6">
+              <button
+                onClick={() => setActiveTab('generator')}
+                className={`text-sm font-medium transition-colors ${
+                  activeTab === 'generator' ? 'text-lime-400' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Generator
+              </button>
+              <button
+                onClick={() => setActiveTab('pricing')}
+                className={`text-sm font-medium transition-colors ${
+                  activeTab === 'pricing' ? 'text-lime-400' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                Pricing
+              </button>
+              <button
+                onClick={() => setActiveTab('faq')}
+                className={`text-sm font-medium transition-colors ${
+                  activeTab === 'faq' ? 'text-lime-400' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                FAQ
+              </button>
+              <button
+                onClick={() => setActiveTab('about')}
+                className={`text-sm font-medium transition-colors ${
+                  activeTab === 'about' ? 'text-lime-400' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                About
+              </button>
+            </nav>
+          </div>
+        </div>
+      </header>
+
+      <div className="max-w-7xl mx-auto px-4 py-8">
+        
+        {/* Generator Tab */}
+        {activeTab === 'generator' && (
+          <>
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-bold mb-3">AI-Powered Script Generation</h2>
+              <p className="text-lg text-lime-200">Describe your requirements and get functional Lua code instantly</p>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              {/* Left Panel */}
+              <div className="lg:col-span-1 space-y-6">
+                
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-xl">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Wand2 className="w-5 h-5 text-lime-400" />
+                    <h3 className="text-xl font-semibold">Describe Your Script</h3>
+                  </div>
+
+                  <textarea
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    placeholder="Example: A shop system where players can purchase items with currency"
+                    className="w-full h-32 px-4 py-3 bg-white/5 border-2 border-white/20 rounded-xl text-white placeholder-lime-300/50 focus:outline-none focus:border-lime-400 transition-all resize-none"
+                  />
+
+                  <button
+                    onClick={generateScript}
+                    disabled={loading || !prompt.trim()}
+                    className="w-full mt-4 bg-gradient-to-r from-yellow-400 via-lime-400 to-green-500 text-black font-bold py-3 rounded-xl hover:from-yellow-500 hover:via-lime-500 hover:to-green-600 transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader className="w-5 h-5 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <Code className="w-5 h-5" />
+                        Generate Script
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-xl">
+                  <div className="flex items-center gap-2 mb-4">
+                    <FileCode className="w-5 h-5 text-blue-400" />
+                    <h3 className="text-xl font-semibold">Categories</h3>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {categories.map(cat => (
+                      <button
+                        key={cat.id}
+                        onClick={() => setSelectedCategory(cat.id)}
+                        className={`p-3 rounded-lg transition-all text-sm font-medium ${
+                          selectedCategory === cat.id
+                            ? 'bg-white/20 border-2 border-white/40'
+                            : 'bg-white/5 border border-white/10 hover:bg-white/10'
+                        }`}
+                      >
+                        {cat.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-xl">
+                  <div className="flex items-center gap-2 mb-4">
+                    <BookOpen className="w-5 h-5 text-green-400" />
+                    <h3 className="text-xl font-semibold">Examples</h3>
+                  </div>
+
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {filteredExamples.map((example, index) => (
+                      <button
+                        key={index}
+                        onClick={() => useExample(example.text)}
+                        className="w-full text-left p-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-sm"
+                      >
+                        {example.text}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Right Panel */}
+              <div className="lg:col-span-2 space-y-6">
+                
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-xl">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <Code className="w-5 h-5 text-lime-400" />
+                      <h3 className="text-xl font-semibold">Generated Code</h3>
+                    </div>
+                    {generatedScript && (
+                      <button
+                        onClick={copyCode}
+                        className="px-4 py-2 bg-green-500 hover:bg-green-600 rounded-lg transition-all flex items-center gap-2 text-sm font-medium"
+                      >
+                        {copied ? (
+                          <>
+                            <CheckCircle className="w-4 h-4" />
+                            Copied
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4" />
+                            Copy Code
+                          </>
+                        )}
+                      </button>
+                    )}
+                  </div>
+
+                  {!generatedScript && !loading && (
+                    <div className="h-96 flex flex-col items-center justify-center text-lime-300/50">
+                      <Code className="w-16 h-16 mb-4" />
+                      <p className="text-lg">Your generated code will appear here</p>
+                      <p className="text-sm">Describe your script and click Generate</p>
+                    </div>
+                  )}
+
+                  {loading && (
+                    <div className="h-96 flex flex-col items-center justify-center">
+                      <Loader className="w-12 h-12 animate-spin text-lime-400 mb-4" />
+                      <p className="text-lg text-lime-200">Generating your script...</p>
+                    </div>
+                  )}
+
+                  {generatedScript && (
+                    <div className="bg-slate-950/50 rounded-xl p-4 border border-white/10 overflow-x-auto">
+                      <pre className="text-sm text-green-300 font-mono whitespace-pre-wrap">
+                        {generatedScript}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+
+                {explanation && (
+                  <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-xl">
+                    <div className="flex items-center gap-2 mb-4">
+                      <MessageSquare className="w-5 h-5 text-blue-400" />
+                      <h3 className="text-xl font-semibold">Explanation</h3>
+                    </div>
+                    <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4">
+                      <p className="text-blue-100 whitespace-pre-wrap text-sm leading-relaxed">{explanation}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-xl">
+                  <div className="flex items-center gap-2 mb-4">
+                    <HelpCircle className="w-5 h-5 text-yellow-400" />
+                    <h3 className="text-xl font-semibold">Best Practices</h3>
+                  </div>
+                  <ul className="space-y-2 text-sm text-lime-200">
+                    <li className="flex items-start gap-2">
+                      <span className="text-lime-400 mt-1">•</span>
+                      <span>Be specific about objects, services, and events in your description</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-lime-400 mt-1">•</span>
+                      <span>Specify if you need a LocalScript, Script, or ModuleScript</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-lime-400 mt-1">•</span>
+                      <span>Mention where the script should be placed in your game hierarchy</span>
+                    </li>
+                    <li className="flex items-start gap-2">
+                      <span className="text-lime-400 mt-1">•</span>
+                      <span>Test the code in Roblox Studio and adjust as needed for your game</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Pricing Tab */}
+        {activeTab === 'pricing' && (
+          <div className="max-w-6xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-bold mb-3">Simple, Transparent Pricing</h2>
+              <p className="text-lg text-lime-200">Professional AI scripting tools, completely free</p>
+            </div>
+
+            {/* Comparison Banner */}
+            <div className="bg-gradient-to-r from-lime-500/20 to-green-500/20 border-2 border-lime-500/50 rounded-2xl p-8 mb-12 text-center">
+              <h3 className="text-3xl font-bold mb-4">Why Citrus AI is Different</h3>
+              <p className="text-xl text-lime-200 mb-6">Most AI coding assistants charge $10-30/month. We believe quality tools should be accessible to everyone.</p>
+              <div className="inline-flex items-center gap-3 bg-black/30 px-6 py-3 rounded-xl">
+                <span className="text-2xl">🍋</span>
+                <span className="text-lg font-semibold">100% Free Forever</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-12">
+              
+              {/* Free Plan - Highlighted */}
+              <div className="lg:col-span-2 bg-gradient-to-br from-lime-500/10 to-green-500/10 backdrop-blur-lg rounded-2xl p-8 border-2 border-lime-500/50 shadow-2xl relative">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-yellow-400 via-lime-400 to-green-500 text-black px-6 py-2 rounded-full font-bold text-sm">
+                  CURRENT PLAN
+                </div>
+                
+                <div className="text-center mb-8 mt-4">
+                  <h3 className="text-3xl font-bold mb-2">Free Plan</h3>
+                  <div className="flex items-baseline justify-center gap-2 mb-4">
+                    <span className="text-6xl font-bold">$0</span>
+                    <span className="text-2xl text-lime-300">/ forever</span>
+                  </div>
+                  <p className="text-lime-200">Everything you need to develop amazing Roblox games</p>
+                </div>
+
+                <div className="space-y-4 mb-8">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-lime-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-black" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Unlimited Script Generation</p>
+                      <p className="text-sm text-lime-300">Generate as many scripts as you need</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-lime-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-black" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Advanced AI Model</p>
+                      <p className="text-sm text-lime-300">Powered by latest Claude Sonnet 4</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-lime-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-black" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">All Script Categories</p>
+                      <p className="text-sm text-lime-300">Combat, GUI, Tools, Systems, Effects & more</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-lime-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-black" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Detailed Explanations</p>
+                      <p className="text-sm text-lime-300">Learn how each script works</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-lime-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-black" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Best Practices & Tips</p>
+                      <p className="text-sm text-lime-300">Optimize your development workflow</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-lime-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-black" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">No Registration Required</p>
+                      <p className="text-sm text-lime-300">Start using immediately</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-lime-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-black" />
+                    </div>
+                    <div>
+                      <p className="font-semibold">Community Support</p>
+                      <p className="text-sm text-lime-300">Get help when you need it</p>
+                    </div>
+                  </div>
+                </div>
+
+                <button 
+                  onClick={() => setActiveTab('generator')}
+                  className="w-full bg-gradient-to-r from-yellow-400 via-lime-400 to-green-500 text-black font-bold py-4 rounded-xl hover:from-yellow-500 hover:via-lime-500 hover:to-green-600 transition-all transform hover:scale-105 shadow-lg"
+                >
+                  Start Generating Scripts
+                </button>
+              </div>
+
+              {/* Future Premium Hint */}
+              <div className="bg-white/5 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl">
+                <div className="text-center mb-6">
+                  <h3 className="text-2xl font-bold mb-2">Premium</h3>
+                  <div className="flex items-baseline justify-center gap-2 mb-4">
+                    <span className="text-4xl font-bold text-gray-400">Coming Soon</span>
+                  </div>
+                  <p className="text-lime-300 text-sm">Future enhanced features</p>
+                </div>
+
+                <div className="space-y-3 mb-6 opacity-60">
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs">?</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">Priority Generation</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs">?</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">Advanced Templates</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs">?</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">Script History</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <div className="w-6 h-6 bg-white/10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                      <span className="text-xs">?</span>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-sm">Custom AI Training</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-4 text-center">
+                  <p className="text-sm text-lime-300">We're exploring premium features based on community feedback. The free plan will always remain robust and functional.</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Comparison Table */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl mb-12">
+              <h3 className="text-2xl font-bold mb-6 text-center">Compare with Other AI Services</h3>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-white/20">
+                      <th className="text-left py-4 px-4">Feature</th>
+                      <th className="text-center py-4 px-4 bg-lime-500/10">
+                        <div className="flex items-center justify-center gap-2">
+                          <span>🍋</span>
+                          <span>Citrus AI</span>
+                        </div>
+                      </th>
+                      <th className="text-center py-4 px-4">GitHub Copilot</th>
+                      <th className="text-center py-4 px-4">ChatGPT Plus</th>
+                      <th className="text-center py-4 px-4">Cursor AI</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="border-b border-white/10">
+                      <td className="py-4 px-4">Monthly Cost</td>
+                      <td className="text-center py-4 px-4 bg-lime-500/10 font-bold text-lime-400">$0</td>
+                      <td className="text-center py-4 px-4 text-gray-400">$10</td>
+                      <td className="text-center py-4 px-4 text-gray-400">$20</td>
+                      <td className="text-center py-4 px-4 text-gray-400">$20</td>
+                    </tr>
+                    <tr className="border-b border-white/10">
+                      <td className="py-4 px-4">Roblox Specialized</td>
+                      <td className="text-center py-4 px-4 bg-lime-500/10"><CheckCircle className="w-5 h-5 text-lime-400 mx-auto" /></td>
+                      <td className="text-center py-4 px-4 text-gray-400">Partial</td>
+                      <td className="text-center py-4 px-4 text-gray-400">Partial</td>
+                      <td className="text-center py-4 px-4 text-gray-400">No</td>
+                    </tr>
+                    <tr className="border-b border-white/10">
+                      <td className="py-4 px-4">Code Explanations</td>
+                      <td className="text-center py-4 px-4 bg-lime-500/10"><CheckCircle className="w-5 h-5 text-lime-400 mx-auto" /></td>
+                      <td className="text-center py-4 px-4 text-gray-400">Limited</td>
+                      <td className="text-center py-4 px-4"><CheckCircle className="w-5 h-5 text-green-400 mx-auto" /></td>
+                      <td className="text-center py-4 px-4"><CheckCircle className="w-5 h-5 text-green-400 mx-auto" /></td>
+                    </tr>
+                    <tr className="border-b border-white/10">
+                      <td className="py-4 px-4">No Registration</td>
+                      <td className="text-center py-4 px-4 bg-lime-500/10"><CheckCircle className="w-5 h-5 text-lime-400 mx-auto" /></td>
+                      <td className="text-center py-4 px-4 text-gray-400">Required</td>
+                      <td className="text-center py-4 px-4 text-gray-400">Required</td>
+                      <td className="text-center py-4 px-4 text-gray-400">Required</td>
+                    </tr>
+                    <tr>
+                      <td className="py-4 px-4">Usage Limits</td>
+                      <td className="text-center py-4 px-4 bg-lime-500/10 font-bold text-lime-400">Unlimited</td>
+                      <td className="text-center py-4 px-4 text-gray-400">Fair Use</td>
+                      <td className="text-center py-4 px-4 text-gray-400">40 msgs/3h</td>
+                      <td className="text-center py-4 px-4 text-gray-400">500 uses/mo</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Why Free Section */}
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl">
+              <h3 className="text-2xl font-bold mb-6 text-center">Why is Citrus AI Free?</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-white/5 p-6 rounded-xl">
+                  <h4 className="font-bold text-lg mb-3 text-lime-300">Community First</h4>
+                  <p className="text-lime-100 text-sm leading-relaxed">
+                    We believe in empowering the Roblox developer community. Quality tools shouldn't be locked behind paywalls, especially for young developers and students learning to code.
+                  </p>
+                </div>
+
+                <div className="bg-white/5 p-6 rounded-xl">
+                  <h4 className="font-bold text-lg mb-3 text-lime-300">Learning & Growth</h4>
+                  <p className="text-lime-100 text-sm leading-relaxed">
+                    By providing free access to AI scripting tools, we're helping create the next generation of game developers. Your success is our success.
+                  </p>
+                </div>
+
+                <div className="bg-white/5 p-6 rounded-xl">
+                  <h4 className="font-bold text-lg mb-3 text-lime-300">Sustainable Model</h4>
+                  <p className="text-lime-100 text-sm leading-relaxed">
+                    We're exploring ethical monetization through optional premium features in the future, but the core functionality will always remain free.
+                  </p>
+                </div>
+
+                <div className="bg-white/5 p-6 rounded-xl">
+                  <h4 className="font-bold text-lg mb-3 text-lime-300">Feedback Driven</h4>
+                  <p className="text-lime-100 text-sm leading-relaxed">
+                    The free model allows us to gather community feedback and continuously improve. Your usage helps make Citrus AI better for everyone.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* FAQ Tab */}
+        {activeTab === 'faq' && (
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-10">
+              <h2 className="text-4xl font-bold mb-3">Frequently Asked Questions</h2>
+              <p className="text-lg text-lime-200">Everything you need to know about Citrus AI</p>
+            </div>
+
+            <div className="space-y-4">
+              {faqs.map((faq, index) => (
+                <div key={index} className="bg-white/10 backdrop-blur-lg rounded-2xl p-6 border border-white/20 shadow-xl">
+                  <h3 className="text-xl font-semibold mb-3 text-lime-300">{faq.question}</h3>
+                  <p className="text-lime-100 leading-relaxed">{faq.answer}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="bg-gradient-to-r from-lime-500/10 to-green-500/10 border border-lime-500/30 rounded-2xl p-8 text-center">
+              <HelpCircle className="w-12 h-12 text-lime-400 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold mb-3">Need More Help?</h3>
+              <p className="text-lime-200 mb-4">If you have additional questions or need support, feel free to reach out.</p>
+              <a 
+                href="mailto:nextlevelcomfwme@gmail.com"
+                className="inline-block px-6 py-3 bg-gradient-to-r from-yellow-400 via-lime-400 to-green-500 text-black font-bold rounded-xl hover:from-yellow-500 hover:via-lime-500 hover:to-green-600 transition-all"
+              >
+                Contact Support
+              </a>
+            </div>
+          </div>
+        )}
+
+        {/* About Tab */}
+        {activeTab === 'about' && (
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-10">
+              <div className="w-20 h-20 bg-gradient-to-br from-yellow-400 via-lime-400 to-green-500 rounded-2xl flex items-center justify-center shadow-2xl mx-auto mb-4">
+                <span className="text-5xl">🍋</span>
+              </div>
+              <h2 className="text-4xl font-bold mb-3">About Citrus AI</h2>
+              <p className="text-lg text-lime-200">Empowering Roblox developers with AI-powered scripting</p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl mb-8">
+              <h3 className="text-2xl font-bold mb-4">Our Mission</h3>
+              <p className="text-lime-100 leading-relaxed mb-4">
+                Citrus AI was created to democratize game development on Roblox. We believe that everyone should have access to powerful scripting tools, regardless of their programming experience. Our AI assistant helps developers of all skill levels create functional, optimized Lua scripts instantly.
+              </p>
+              <p className="text-lime-100 leading-relaxed">
+                Whether you're a beginner learning the basics or an experienced developer looking to speed up your workflow, Citrus AI is here to help you bring your game ideas to life.
+              </p>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl mb-8">
+              <div className="flex items-center gap-2 mb-6">
+                <Users className="w-6 h-6 text-lime-400" />
+                <h3 className="text-2xl font-bold">Development Team</h3>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-500 rounded-full flex items-center justify-center font-bold text-lg">
+                    N
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-lg">NicoIsDev</h4>
+                    <p className="text-lime-300 text-sm">Lead Developer</p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 p-4 bg-white/5 rounded-xl border border-white/10">
+                  <div className="w-12 h-12 bg-gradient-to-br from-lime-400 to-green-500 rounded-full flex items-center justify-center font-bold text-lg text-black">
+                    A
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-lg">Axiom</h4>
+                    <p className="text-lime-300 text-sm">AI Architecture & Integration</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20 shadow-xl mb-8">
+              <h3 className="text-2xl font-bold mb-4">Technology</h3>
+              <p className="text-lime-100 leading-relaxed mb-4">
+                Citrus AI is powered by state-of-the-art language models and specialized training on Roblox development patterns. The system understands Roblox's unique ecosystem, including its services, APIs, and best practices.
+              </p>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
+                  <div className="text-3xl mb-2">⚡</div>
+                  <h4 className="font-semibold mb-1">Fast Generation</h4>
+                  <p className="text-sm text-lime-300">Scripts in seconds</p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
+                  <div className="text-3xl mb-2">🎯</div>
+                  <h4 className="font-semibold mb-1">Accurate Code</h4>
+                  <p className="text-sm text-lime-300">Follows best practices</p>
+                </div>
+                <div className="bg-white/5 p-4 rounded-xl border border-white/10 text-center">
+                  <div className="text-3xl mb-2">📚</div>
+                  <h4 className="font-semibold mb-1">Learn as You Go</h4>
+                  <p className="text-sm text-lime-300">Detailed explanations</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-lime-500/10 to-green-500/10 border border-lime-500/30 rounded-2xl p-8 text-center">
+              <Mail className="w-12 h-12 text-lime-400 mx-auto mb-4" />
+              <h3 className="text-2xl font-bold mb-3">Get in Touch</h3>
+              <p className="text-lime-200 mb-4">Have feedback, suggestions, or want to collaborate? We'd love to hear from you.</p>
+              <a 
+                href="mailto:nextlevelcomfwme@gmail.com?subject=Citrus AI - Contact"
+                className="inline-block px-6 py-3 bg-gradient-to-r from-yellow-400 via-lime-400 to-green-500 text-black font-bold rounded-xl hover:from-yellow-500 hover:via-lime-500 hover:to-green-600 transition-all"
+              >
+                Contact Us
+              </a>
+              <p className="text-lime-300/70 text-sm mt-4">nextlevelcomfwme@gmail.com</p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t border-white/10 bg-black/20 backdrop-blur-lg mt-16">
+        <div className="max-w-7xl mx-auto px-4 py-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-6">
+            
+            {/* Brand */}
+            <div>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-2xl">🍋</span>
+                <span className="font-bold text-lg">Citrus AI</span>
+              </div>
+              <p className="text-lime-300/70 text-sm">
+                Professional script generation for Roblox developers
+              </p>
+            </div>
+
+            {/* Quick Links */}
+            <div>
+              <h4 className="font-semibold mb-3">Quick Links</h4>
+              <div className="space-y-2 text-sm">
+                <button onClick={() => setActiveTab('generator')} className="block text-lime-300/70 hover:text-lime-300 transition-colors">
+                  Generator
+                </button>
+                <button onClick={() => setActiveTab('pricing')} className="block text-lime-300/70 hover:text-lime-300 transition-colors">
+                  Pricing
+                </button>
+                <button onClick={() => setActiveTab('faq')} className="block text-lime-300/70 hover:text-lime-300 transition-colors">
+                  FAQ
+                </button>
+                <button onClick={() => setActiveTab('about')} className="block text-lime-300/70 hover:text-lime-300 transition-colors">
+                  About
+                </button>
+              </div>
+            </div>
+
+            {/* Contact */}
+            <div>
+              <h4 className="font-semibold mb-3">Contact</h4>
+              <div className="space-y-2 text-sm">
+                <a 
+                  href="mailto:nextlevelcomfwme@gmail.com" 
+                  className="block text-lime-300/70 hover:text-lime-300 transition-colors"
+                >
+                  nextlevelcomfwme@gmail.com
+                </a>
+                <p className="text-lime-300/50">
+                  Support • Feedback • Collaboration
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="border-t border-white/10 pt-6 text-center">
+            <p className="text-lime-300 text-sm mb-2">
+              Citrus AI - Professional script generation for Roblox developers
+            </p>
+            <p className="text-lime-400/50 text-xs">
+              Powered by Axiom • Built with passion for the Roblox community • 100% Free Forever
+            </p>
+          </div>
+        </div>
+      </footer>
+    </div>
+  );
+}
